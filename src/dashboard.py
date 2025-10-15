@@ -271,12 +271,15 @@ with tabs[1]:
         """)
 
     # ---------- Full-range line chart ----------
-    fig = px.line(df_nn, x='datetime_utc', y='nearest_neighbor_km', color='name', markers=False, template="plotly_dark")
     fig.update_layout(
-        yaxis_title="Nearest Neighbor Distance (km)",
-        xaxis_title="Time (UTC)",
-        title="Distance to Nearest Satellite Over Time"
-    )
+    yaxis=dict(
+        title="Nearest Neighbor Distance (km)",
+        tickformat=".0f"  # Force plain numeric format (no commas)
+    ),
+    xaxis=dict(
+        title="Time (UTC)"
+    ),
+    title="Distance to Nearest Satellite Over Time")
     fig.add_hline(y=threshold_km, line_dash="dot", line_color="red",
                   annotation_text="Threshold", annotation_position="bottom right")
     st.plotly_chart(fig, use_container_width=True)
