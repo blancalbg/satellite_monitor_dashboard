@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import datetime
 
 # ----------------------
 # Create dark-mode view
@@ -52,16 +53,6 @@ st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
 df_positions = pd.read_csv("data/positions.csv")
 
 # ----------------------
-# Sidebar controls
-# ----------------------
-max_sats = st.sidebar.slider("Max satellites to show", 1, min(10, len(df_positions['name'].unique())), 10)
-threshold_km = st.sidebar.number_input("Close approach threshold (km)", value=50)
-
-# Filter satellites
-sat_names = df_positions['name'].unique()[:max_sats]
-df_positions = df_positions[df_positions['name'].isin(sat_names)]
-
-# ----------------------
 # Compute derived metrics
 # ----------------------
 
@@ -101,6 +92,42 @@ def in_europe(lat, lon):
 
 df_positions['over_europe'] = df_positions.apply(lambda r: in_europe(r.latitude_deg, r.longitude_deg), axis=1)
 coverage = df_positions.groupby('name')['over_europe'].sum().reset_index().rename(columns={'over_europe':'passes_over_europe'})
+
+
+# ----------------------
+# Sidebar controls
+# ----------------------
+st.sidebar.header("Controls & Filters")
+
+# Select satellites to display
+all_sat_names = df_positions['name'].unique()
+selected_sats = st.sidebar.multiselect(
+    "Select satellites to display", 
+    options=all_sat_names,
+    default=all_sat_names[:10]  # default top 10
+)
+df_positions = df_positions[df_positions['name'].isin(selected_sats)]
+
+# Close approach threshold (optional for highlighting distances)
+st.sidebar.subheader("Threshold (Distances Tab Only)")
+threshold_km = st.sidebar.number_input(
+    "Highlight distances below (km)", 
+    value=50
+)
+st.sidebar.caption("This only affects the Nearest-Neighbor Distances tab.")
+
+# Quick stats summary
+st.sidebar.markdown("---")
+st.sidebar.subheader("Quick Stats")
+st.sidebar.markdown(f"- Total satellites: **{len(selected_sats)}**")
+if len(df_positions) > 0:
+    st.sidebar.markdown(f"- Avg altitude: **{df_positions['altitude_km'].mean():.0f} km**")
+    st.sidebar.markdown(f"- Min nearest neighbor: **{df_nn['nearest_neighbor_km'].min():.0f} km**")
+    st.sidebar.markdown(f"- Max nearest neighbor: **{df_nn['nearest_neighbor_km'].max():.0f} km**")
+
+# Filter satellites based on sidebar multiselect
+df_positions = df_positions[df_positions['name'].isin(selected_sats)]
+
 
 # ----------------------
 # Streamlit tabs
@@ -208,35 +235,91 @@ with tabs[1]:
     **Summary Metrics**
     - **Minimum distance observed:** {min_dist:.2f} km  
     - **Average nearest distance:** {mean_dist:.2f} km  
-    - **% of close approaches (< {threshold_km} km):** {below_threshold:.1f}%
+    - **% of close approaches (< {threshold_km} km):** {below_threshold:.1f}%  
+    *(Threshold only applies to this tab)*
     """)
 
     # ---------- Explanation ----------
     with st.expander("ℹ️ Understanding this view"):
         st.markdown("""
         Each point represents the **distance to the nearest satellite** at a given timestamp.
-        
+
         - **Sharp drops** → temporary proximity events or potential conjunctions.  
-        - **Flat lines** → stable orbital spacing and relative motion.  
-        - **Wide histograms** → satellites with irregular distances (less predictable orbits).  
-        
+        - **Flat lines** → stable orbital spacing.  
+        - **Wide histograms** → satellites with irregular distances.  
+
         Values below the threshold (default: 50 km) indicate *potentially risky close approaches*.
         """)
 
-    # ---------- Line chart over time ----------
-    fig = px.line(df_nn, x='datetime_utc', y='nearest_neighbor_km', color='name', markers=True, template="plotly_dark")
+    # ---------- Full-range line chart ----------
+    fig = px.line(df_nn, x='datetime_utc', y='nearest_neighbor_km', color='name', markers=False, template="plotly_dark")
     fig.update_layout(
         yaxis_title="Nearest Neighbor Distance (km)",
         xaxis_title="Time (UTC)",
         title="Distance to Nearest Satellite Over Time"
     )
-    # Add threshold line
-    fig.add_hline(y=threshold_km, line_dash="dot", line_color="red", annotation_text="Threshold", annotation_position="bottom right")
+    fig.add_hline(y=threshold_km, line_dash="dot", line_color="red",
+                  annotation_text="Threshold", annotation_position="bottom right")
     st.plotly_chart(fig, use_container_width=True)
+
+    # ---------- Zoomed-in scatter plot ----------
+    df_zoom = df_nn[df_nn['nearest_neighbor_km'] < threshold_km*2].copy()
+    if not df_zoom.empty:
+        df_zoom['color'] = np.where(df_zoom['nearest_neighbor_km'] < threshold_km, 'Below Threshold', 'Normal')
+        fig_zoom = px.scatter(
+            df_zoom,
+            x='datetime_utc',
+            y='nearest_neighbor_km',
+            color='color',
+            hover_name='name',
+            template="plotly_dark",
+            color_discrete_map={'Below Threshold':'red', 'Normal':'blue'}
+        )
+        fig_zoom.update_layout(
+            yaxis_title="Nearest Neighbor Distance (km)",
+            xaxis_title="Time (UTC)",
+            title=f"Zoom: Distances Near Threshold (< {threshold_km*2} km)"
+        )
+        fig_zoom.add_hline(y=threshold_km, line_dash="dot", line_color="red",
+                           annotation_text="Threshold", annotation_position="bottom right")
+        st.plotly_chart(fig_zoom, use_container_width=True)
+    else:
+        st.info("No distances below the zoom threshold to display.")
+
+    # ---------- Table of close approaches ----------
+    st.subheader(f"Close Approaches (< {threshold_km} km)")
+    df_close = df_nn[df_nn['nearest_neighbor_km'] < threshold_km].copy()
+
+    if not df_close.empty:
+        nearest_list = []
+        for idx, row in df_close.iterrows():
+            t = row['datetime_utc']
+            sat_name = row['name']
+            # Get positions at that timestamp
+            group = df_positions[df_positions['datetime_utc'] == t]
+            coords = group[['x','y','z']].values
+            names = group['name'].values
+            i = np.where(names == sat_name)[0][0]
+            others = np.delete(coords, i, axis=0)
+            other_names = np.delete(names, i)
+            if len(others) > 0:
+                dist = np.linalg.norm(others - coords[i], axis=1)
+                nearest_name = other_names[np.argmin(dist)]
+                nearest_dist = dist.min()
+            else:
+                nearest_name = None
+                nearest_dist = None
+            nearest_list.append([t, sat_name, nearest_name, nearest_dist])
+
+        df_table = pd.DataFrame(nearest_list, columns=['datetime_utc','satellite','nearest_satellite','distance_km'])
+        st.dataframe(df_table)
+    else:
+        st.info("No close approaches below threshold currently.")
 
     # ---------- Histogram ----------
     st.subheader("Distance Distribution")
-    fig_hist = px.histogram(df_nn, x='nearest_neighbor_km', nbins=30, color='name', barmode='overlay', template="plotly_dark")
+    fig_hist = px.histogram(df_nn, x='nearest_neighbor_km', nbins=30, color='name',
+                            barmode='overlay', template="plotly_dark")
     fig_hist.update_layout(
         xaxis_title="Distance (km)",
         yaxis_title="Frequency",
@@ -244,8 +327,9 @@ with tabs[1]:
     )
     st.plotly_chart(fig_hist, use_container_width=True)
 
+
 # ----- Altitude Tab -----
-# ----- Altitude Tab -----
+
 with tabs[2]:
     st.subheader("Altitude Over Time")
 
