@@ -66,12 +66,13 @@ df_positions = pd.read_csv(
     thousands=','                 # Handle any thousands separators
 )
 
-df_positions['altitude_km'] = (
-    df_positions['altitude_km']
-    .astype(str)
-    .str.replace(',', '', regex=False)
-    .astype(float)
-)
+for col in ['altitude_km']:
+    df_positions[col] = (
+        df_positions[col]
+        .astype(str)
+        .str.replace(',', '', regex=False)
+        .astype(float)
+    )
 
 # Optional: check the first few rows to debug in cloud
 #st.write(df_positions.head())
@@ -117,12 +118,13 @@ for t, group in df_positions.groupby('datetime_utc'):
 
 df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
 
-df_nn['nearest_neighbor_km'] = (
-    df_nn['nearest_neighbor_km']
-    .astype(str)              # convert to string (in case they’re numbers locally)
-    .str.replace(',', '', regex=False)  # remove commas
-    .astype(float)            # convert to float again
-)
+if 'nearest_neighbor_km' in df_nn.columns:
+    df_nn['nearest_neighbor_km'] = (
+        df_nn['nearest_neighbor_km']
+        .astype(str)
+        .str.replace(',', '', regex=False)
+        .astype(float)
+    )
 
 st.write("🔍 Nearest-neighbor distances sample:")
 st.dataframe(df_nn.head(10))
