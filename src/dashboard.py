@@ -6,7 +6,6 @@ import plotly.express as px
 import datetime
 from scipy.spatial import distance_matrix
 
-
 st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
 st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
 
@@ -52,7 +51,12 @@ st.markdown(
 # ----------------------
 # Load data
 # ----------------------
-df_positions = pd.read_csv("data/positions.csv")
+
+BASE_DIR = os.path.dirname(__file__)  # folder where dashboard.py lives
+CSV_PATH = os.path.join(BASE_DIR, "../data/positions.csv")  # relative path to CSV
+
+df_positions = pd.read_csv(CSV_PATH)
+#df_positions = pd.read_csv("data/positions.csv")
 
 # ----------------------
 # Compute derived metrics
