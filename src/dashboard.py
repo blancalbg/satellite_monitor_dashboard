@@ -61,8 +61,6 @@ CSV_PATH = os.path.join(BASE_DIR, "../data/positions.csv")  # relative path to C
 df_positions = pd.read_csv(CSV_PATH)
 #df_positions = pd.read_csv("data/positions.csv")
 
-df_positions['altitude_km'] = df_positions['altitude_km'].str.replace(',', '').astype(float)
-
 # ----------------------
 # Compute derived metrics
 # ----------------------
