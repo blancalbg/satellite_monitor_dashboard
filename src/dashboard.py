@@ -119,7 +119,7 @@ df_positions = df_positions[df_positions['name'].isin(selected_sats)]
 st.sidebar.subheader("Threshold (Distances Tab Only)")
 threshold_km = st.sidebar.number_input(
     "Highlight distances below (km)", 
-    value=50
+    value=5000
 )
 st.sidebar.caption("This only affects the Nearest-Neighbor Distances tab.")
 
