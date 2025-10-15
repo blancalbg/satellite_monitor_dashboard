@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import datetime
+from scipy.spatial import distance_matrix
+
 
 st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
 st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
@@ -443,7 +445,6 @@ with tabs[4]:
     df_latest = df_positions[df_positions['datetime_utc'] == latest_time].copy()
 
     # Compute nearest-neighbor distance for hover
-    from scipy.spatial import distance_matrix
     coords = df_latest[['x','y','z']].values
     dist_matrix = distance_matrix(coords, coords)
     np.fill_diagonal(dist_matrix, np.inf)  # ignore self-distance
