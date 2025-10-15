@@ -7,6 +7,7 @@ import datetime
 from scipy.spatial import distance_matrix
 import os
 import plotly.graph_objects as go
+import locale
 
 
 st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
@@ -59,20 +60,31 @@ st.markdown(
 csv_path = os.path.join(os.path.dirname(__file__), '../data/positions.csv')
 
 # Read CSV safely
+"""
 df_positions = pd.read_csv(
     csv_path,
     dtype={'altitude_km': float},  # Force float type for altitude
     parse_dates=['datetime_utc'],  # Ensure datetime is recognized
     thousands=','                 # Handle any thousands separators
 )
+"""
+try:
+    locale.setlocale(locale.LC_NUMERIC, 'en_US.UTF-8')
+except:
+    pass  # not all systems have locale available
 
+df_positions = pd.read_csv(
+    "data/positions.csv",
+    thousands=',',   # <--- tells pandas to treat commas in numbers as separators
+    quotechar='"',   # <--- properly unquotes values like "10,651.1321"
+    encoding='utf-8'
+)
+
+# Ensure numeric columns are floats
 for col in ['altitude_km']:
-    df_positions[col] = (
-        df_positions[col]
-        .astype(str)
-        .str.replace(',', '', regex=False)
-        .astype(float)
-    )
+    if col in df_positions.columns:
+        df_positions[col] = pd.to_numeric(df_positions[col], errors='coerce')
+
 
 # Optional: check the first few rows to debug in cloud
 #st.write(df_positions.head())
