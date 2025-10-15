@@ -67,7 +67,10 @@ df_positions = pd.read_csv(
 )
 
 # Optional: check the first few rows to debug in cloud
-st.write(df_positions.head())
+#st.write(df_positions.head())
+st.write("CSV preview in Cloud:")
+st.dataframe(df_positions.head())
+st.write(df_positions.dtypes)
 
 # ----------------------
 # Compute derived metrics
