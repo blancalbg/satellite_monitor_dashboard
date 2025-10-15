@@ -5,6 +5,9 @@ import numpy as np
 import plotly.express as px
 import datetime
 
+st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
+st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
+
 # ----------------------
 # Create dark-mode view
 # ----------------------
@@ -43,9 +46,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
-st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
-st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
 
 # ----------------------
 # Load data
@@ -287,34 +287,34 @@ with tabs[1]:
         st.info("No distances below the zoom threshold to display.")
 
     # ---------- Table of close approaches ----------
-    st.subheader(f"Close Approaches (< {threshold_km} km)")
-    df_close = df_nn[df_nn['nearest_neighbor_km'] < threshold_km].copy()
+st.subheader(f"Close Approaches (< {threshold_km} km)")
+df_close = df_nn[df_nn['nearest_neighbor_km'] < threshold_km].copy()
 
-    if not df_close.empty:
-        nearest_list = []
-        for idx, row in df_close.iterrows():
-            t = row['datetime_utc']
-            sat_name = row['name']
-            # Get positions at that timestamp
-            group = df_positions[df_positions['datetime_utc'] == t]
-            coords = group[['x','y','z']].values
-            names = group['name'].values
-            i = np.where(names == sat_name)[0][0]
-            others = np.delete(coords, i, axis=0)
-            other_names = np.delete(names, i)
-            if len(others) > 0:
-                dist = np.linalg.norm(others - coords[i], axis=1)
-                nearest_name = other_names[np.argmin(dist)]
-                nearest_dist = dist.min()
-            else:
-                nearest_name = None
-                nearest_dist = None
-            nearest_list.append([t, sat_name, nearest_name, nearest_dist])
+if not df_close.empty:
+    nearest_list = []
+    for idx, row in df_close.iterrows():
+        t = row['datetime_utc']
+        sat_name = row['name']
+        # Get positions at that timestamp
+        group = df_positions[df_positions['datetime_utc'] == t]
+        coords = group[['x','y','z']].values
+        names = group['name'].values
+        i = np.where(names == sat_name)[0][0]
+        others = np.delete(coords, i, axis=0)
+        other_names = np.delete(names, i)
+        if len(others) > 0:
+            dist = np.linalg.norm(others - coords[i], axis=1)
+            nearest_name = other_names[np.argmin(dist)]
+            nearest_dist = dist.min()
+        else:
+            nearest_name = None
+            nearest_dist = None
+        nearest_list.append([t, sat_name, nearest_name, nearest_dist])
 
-        df_table = pd.DataFrame(nearest_list, columns=['datetime_utc','satellite','nearest_satellite','distance_km'])
-        st.dataframe(df_table)
-    else:
-        st.info("No close approaches below threshold currently.")
+    df_table = pd.DataFrame(nearest_list, columns=['datetime_utc','satellite','nearest_satellite','distance_km'])
+    st.dataframe(df_table)
+else:
+    st.info("No close approaches below threshold currently.")
 
     # ---------- Histogram ----------
     st.subheader("Distance Distribution")
