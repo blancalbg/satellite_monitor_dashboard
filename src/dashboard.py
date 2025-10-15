@@ -6,6 +6,8 @@ import plotly.express as px
 import datetime
 from scipy.spatial import distance_matrix
 import os
+import plotly.graph_objects as go
+
 
 st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
 st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
@@ -58,6 +60,12 @@ CSV_PATH = os.path.join(BASE_DIR, "../data/positions.csv")  # relative path to C
 
 df_positions = pd.read_csv(CSV_PATH)
 #df_positions = pd.read_csv("data/positions.csv")
+
+# Convert numeric columns explicitly
+numeric_cols = ['latitude_deg', 'longitude_deg', 'altitude_km']
+df_positions[numeric_cols] = df_positions[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+df_positions['altitude_km'] = df_positions['altitude_km'].str.replace(',', '').astype(float)
 
 # ----------------------
 # Compute derived metrics
@@ -454,9 +462,6 @@ with tabs[4]:
     dist_matrix = distance_matrix(coords, coords)
     np.fill_diagonal(dist_matrix, np.inf)  # ignore self-distance
     df_latest['nearest_neighbor_km'] = dist_matrix.min(axis=1)
-
-    import plotly.graph_objects as go
-    import numpy as np
 
     # ----- Create Earth sphere -----
     radius_earth = 6371  # km
