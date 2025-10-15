@@ -68,9 +68,9 @@ df_positions = pd.read_csv(
 
 # Optional: check the first few rows to debug in cloud
 #st.write(df_positions.head())
-st.write("CSV preview in Cloud:")
-st.dataframe(df_positions.head())
-st.write(df_positions.dtypes)
+#st.write("CSV preview in Cloud:")
+#st.dataframe(df_positions.head())
+#st.write(df_positions.dtypes)
 
 # ----------------------
 # Compute derived metrics
@@ -90,6 +90,14 @@ def geodetic_to_ecef(lat, lon, alt):
 positions_ecef = geodetic_to_ecef(df_positions['latitude_deg'], df_positions['longitude_deg'], df_positions['altitude_km'])
 df_positions[['x','y','z']] = positions_ecef
 
+st.write("✅ Sample of df_positions:")
+st.dataframe(df_positions.head(5))
+
+st.write("🛰 Number of satellites:", df_positions['name'].nunique())
+st.write("📅 Number of timestamps:", df_positions['datetime_utc'].nunique())
+st.write("🔝 Altitude stats (km):")
+st.write(df_positions['altitude_km'].describe())
+
 # Nearest neighbor distances per satellite per timestamp
 nearest_distances = []
 for t, group in df_positions.groupby('datetime_utc'):
@@ -101,6 +109,12 @@ for t, group in df_positions.groupby('datetime_utc'):
         nearest_distances.append([t, name, dist])
 
 df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
+
+st.write("🔍 Nearest-neighbor distances sample:")
+st.dataframe(df_nn.head(10))
+
+st.write("📏 Distance stats (km):")
+st.write(df_nn['nearest_neighbor_km'].describe())
 
 # 2. Altitude stats
 alt_stats = df_positions.groupby('name')['altitude_km'].agg(['min','max','mean']).reset_index()
