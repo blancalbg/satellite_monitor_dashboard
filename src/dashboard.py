@@ -256,16 +256,6 @@ with tabs[0]:
     )
 
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
-    
-df_nn['nearest_neighbor_km'] = pd.to_numeric(df_nn['nearest_neighbor_km'], errors='coerce')
-df_nn = df_nn.dropna(subset=['nearest_neighbor_km'])
-
-st.write(df_nn.dtypes)
-st.write(df_nn.head())
-
-df_plot = df_nn.copy()
-df_plot['nearest_neighbor_km'] = pd.to_numeric(df_plot['nearest_neighbor_km'], errors='coerce')
-st.write("Plot min/max:", df_plot['nearest_neighbor_km'].min(), df_plot['nearest_neighbor_km'].max())
 
 # ----- Distances Tab -----
 with tabs[1]:
@@ -297,19 +287,32 @@ with tabs[1]:
         """)
 
     # ---------- Full-range line chart ----------
-    fig = px.line(df_nn, x='datetime_utc', y='nearest_neighbor_km', color='name', markers=False, template="plotly_dark")
-    fig.update_layout(
-    yaxis=dict(
-        title="Nearest Neighbor Distance (km)",
-        tickformat=".0f"  # Force plain numeric format (no commas)
-    ),
-    xaxis=dict(
-        title="Time (UTC)"
-    ),
-    title="Distance to Nearest Satellite Over Time"
+    fig = px.line(
+    df_nn,
+    x='datetime_utc',
+    y='nearest_neighbor_km',
+    color='name',
+    markers=True,
+    template="plotly_dark"
     )
-    fig.add_hline(y=threshold_km, line_dash="dot", line_color="red",
-                  annotation_text="Threshold", annotation_position="bottom right")
+
+    # Force y-axis to fit your actual data
+    fig.update_layout(
+        yaxis=dict(range=[0, df_nn['nearest_neighbor_km'].max()*1.1]),
+        yaxis_title="Nearest Neighbor Distance (km)",
+        xaxis_title="Time (UTC)",
+        title="Distance to Nearest Satellite Over Time"
+    )
+
+    # Add threshold line
+    fig.add_hline(
+        y=threshold_km,
+        line_dash="dot",
+        line_color="red",
+        annotation_text="Threshold",
+        annotation_position="bottom right"
+    )
+
     st.plotly_chart(fig, use_container_width=True)
 
     # ---------- Zoomed-in scatter plot ----------
