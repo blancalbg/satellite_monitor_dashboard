@@ -66,6 +66,13 @@ df_positions = pd.read_csv(
     thousands=','                 # Handle any thousands separators
 )
 
+df_positions['altitude_km'] = (
+    df_positions['altitude_km']
+    .astype(str)
+    .str.replace(',', '', regex=False)
+    .astype(float)
+)
+
 # Optional: check the first few rows to debug in cloud
 #st.write(df_positions.head())
 #st.write("CSV preview in Cloud:")
@@ -109,6 +116,13 @@ for t, group in df_positions.groupby('datetime_utc'):
         nearest_distances.append([t, name, dist])
 
 df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
+
+df_nn['nearest_neighbor_km'] = (
+    df_nn['nearest_neighbor_km']
+    .astype(str)              # convert to string (in case they’re numbers locally)
+    .str.replace(',', '', regex=False)  # remove commas
+    .astype(float)            # convert to float again
+)
 
 st.write("🔍 Nearest-neighbor distances sample:")
 st.dataframe(df_nn.head(10))
