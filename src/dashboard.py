@@ -5,6 +5,7 @@ import numpy as np
 import plotly.express as px
 import datetime
 from scipy.spatial import distance_matrix
+import os
 
 st.set_page_config(page_title="Mini Satellite Monitoring Dashboard", layout="wide")
 st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
