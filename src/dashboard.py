@@ -10,8 +10,8 @@ import plotly.graph_objects as go
 import locale
 
 
-st.set_page_config(page_title="Satellite Monitor Dashboard – Mini Galileo Constellation Explorer", layout="wide")
-st.title("🛰️ Mini Satellite Monitoring Dashboard (Galileo)")
+st.set_page_config(page_title="Satellite Monitor Dashboard - Vyoma", layout="wide")
+st.title("🛰️ Satellite Monitor Dashboard – Mini Galileo Constellation Explorer")
 
 # ----------------------
 # Create dark-mode view
