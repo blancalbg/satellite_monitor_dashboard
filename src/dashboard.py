@@ -263,6 +263,10 @@ df_nn = df_nn.dropna(subset=['nearest_neighbor_km'])
 st.write(df_nn.dtypes)
 st.write(df_nn.head())
 
+df_plot = df_nn.copy()
+df_plot['nearest_neighbor_km'] = pd.to_numeric(df_plot['nearest_neighbor_km'], errors='coerce')
+st.write("Plot min/max:", df_plot['nearest_neighbor_km'].min(), df_plot['nearest_neighbor_km'].max())
+
 # ----- Distances Tab -----
 with tabs[1]:
     st.subheader("Nearest-Neighbor Distances")
