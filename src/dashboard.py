@@ -55,11 +55,19 @@ st.markdown(
 # Load data
 # ----------------------
 
-BASE_DIR = os.path.dirname(__file__)  # folder where dashboard.py lives
-CSV_PATH = os.path.join(BASE_DIR, "../data/positions.csv")  # relative path to CSV
+# Absolute path relative to this script
+csv_path = os.path.join(os.path.dirname(__file__), '../data/positions.csv')
 
-df_positions = pd.read_csv(CSV_PATH)
-#df_positions = pd.read_csv("data/positions.csv")
+# Read CSV safely
+df_positions = pd.read_csv(
+    csv_path,
+    dtype={'altitude_km': float},  # Force float type for altitude
+    parse_dates=['datetime_utc'],  # Ensure datetime is recognized
+    thousands=','                 # Handle any thousands separators
+)
+
+# Optional: check the first few rows to debug in cloud
+st.write(df_positions.head())
 
 # ----------------------
 # Compute derived metrics
