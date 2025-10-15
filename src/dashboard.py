@@ -60,30 +60,13 @@ st.markdown(
 csv_path = os.path.join(os.path.dirname(__file__), '../data/positions.csv')
 
 # Read CSV safely
-"""
+
 df_positions = pd.read_csv(
     csv_path,
     dtype={'altitude_km': float},  # Force float type for altitude
     parse_dates=['datetime_utc'],  # Ensure datetime is recognized
     thousands=','                 # Handle any thousands separators
 )
-"""
-try:
-    locale.setlocale(locale.LC_NUMERIC, 'en_US.UTF-8')
-except:
-    pass  # not all systems have locale available
-
-df_positions = pd.read_csv(
-    "data/positions.csv",
-    thousands=',',   # <--- tells pandas to treat commas in numbers as separators
-    quotechar='"',   # <--- properly unquotes values like "10,651.1321"
-    encoding='utf-8'
-)
-
-# Ensure numeric columns are floats
-for col in ['altitude_km']:
-    if col in df_positions.columns:
-        df_positions[col] = pd.to_numeric(df_positions[col], errors='coerce')
 
 
 # Optional: check the first few rows to debug in cloud
@@ -129,14 +112,6 @@ for t, group in df_positions.groupby('datetime_utc'):
         nearest_distances.append([t, name, dist])
 
 df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
-
-if 'nearest_neighbor_km' in df_nn.columns:
-    df_nn['nearest_neighbor_km'] = (
-        df_nn['nearest_neighbor_km']
-        .astype(str)
-        .str.replace(',', '', regex=False)
-        .astype(float)
-    )
 
 st.write("🔍 Nearest-neighbor distances sample:")
 st.dataframe(df_nn.head(10))
@@ -282,6 +257,8 @@ with tabs[0]:
 
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
     
+df_nn['nearest_neighbor_km'] = pd.to_numeric(df_nn['nearest_neighbor_km'], errors='coerce')
+df_nn = df_nn.dropna(subset=['nearest_neighbor_km'])
 
 # ----- Distances Tab -----
 with tabs[1]:
