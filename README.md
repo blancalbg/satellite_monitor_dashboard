@@ -35,35 +35,35 @@ A lightweight, interactive dashboard to explore satellite behavior in orbit. It 
 
 ### 1. Clone the repository
 
-git clone https://github.com/your-username/new-repo-name.git
-cd new-repo-name
+`git clone https://github.com/your-username/new-repo-name.git`
+`cd new-repo-name`
 
 ### 2. Create and activate a virtual environment
 
-python -m venv venv
+`python -m venv venv`
 
-Windows --> venv\Scripts\activate
+Windows --> `venv\Scripts\activate`
 
-Mac/Linux --> source venv/bin/activate
+Mac/Linux --> `source venv/bin/activate`
 
 ### 3. Install dependencies
 
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 
 
 ### 4. Run the scripts in order
 
 Step 1: Ingest TLE data. This downloads and saves satellite TLE data.
 
-python ingest_tle.py
+`python ingest_tle.py`
 
 Step 2: Propagate positions. This generates satellite positions over the desired time range.
 
-python propagate_positions.py
+`python propagate_positions.py`
 
 Step 3: Launch the dashboard. The dashboard will open in your browser.
 
-streamlit run dashboard.py
+`streamlit run dashboard.py`
 
 ## Usage
 
