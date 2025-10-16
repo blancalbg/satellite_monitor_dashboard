@@ -36,6 +36,7 @@ A lightweight, interactive dashboard to explore satellite behavior in orbit. It 
 ### 1. Clone the repository
 
 `git clone https://github.com/your-username/new-repo-name.git`
+
 `cd new-repo-name`
 
 ### 2. Create and activate a virtual environment
