@@ -64,7 +64,7 @@ df_positions = pd.read_csv(
     parse_dates=['datetime_utc'], 
     thousands=',')
 
-#check the first few rows to debug in cloud
+#check the first rows debug in cloud
 #st.write(df_positions.head())
 #st.write("CSV preview in Cloud:")
 
@@ -72,42 +72,76 @@ df_positions = pd.read_csv(
 # Compute derived metrics
 # ----------------------
 
-# nn distances
+# convert from lat/lon/alt to x/y/z
 def geodetic_to_ecef(lat, lon, alt):
-    EARTH_R = 6371.0
-    lat = np.deg2rad(lat)
-    lon = np.deg2rad(lon)
-    r = EARTH_R + alt
-    x = r * np.cos(lat) * np.cos(lon)
-    y = r * np.cos(lat) * np.sin(lon)
-    z = r * np.sin(lat)
+    earth_radius = 6371.0
+    
+    # convert to radians
+    lat_r = np.radians(lat)
+    lon_r = np.radians(lon)
+    
+    r = earth_radius + alt
+    
+    # compute coords
+    x = r * np.cos(lat_r) * np.cos(lon_r)
+    y = r * np.cos(lat_r) * np.sin(lon_r)
+    z = r * np.sin(lat_r)
+    
     return np.array([x, y, z]).T
 
-positions_ecef = geodetic_to_ecef(df_positions['latitude_deg'], df_positions['longitude_deg'], df_positions['altitude_km'])
-df_positions[['x','y','z']] = positions_ecef
+# apply conversion for all positions
+positions_xyz = geodetic_to_ecef(
+    df_positions['latitude_deg'],
+    df_positions['longitude_deg'],
+    df_positions['altitude_km']
+)
+df_positions[['x', 'y', 'z']] = positions_xyz
 
-# nn distances per satellite per timestamp
-nearest_distances = []
-for t, group in df_positions.groupby('datetime_utc'):
-    coords = group[['x','y','z']].values
+
+# nn distances
+
+nearest_rows = []
+
+for time_val, group in df_positions.groupby('datetime_utc'):
+    coords = group[['x', 'y', 'z']].values
     names = group['name'].values
-    for i, name in enumerate(names):
+    
+    # compute distance to nearest other satellite
+    for i in range(len(coords)):
+        current = coords[i]
         others = np.delete(coords, i, axis=0)
-        dist = np.linalg.norm(others - coords[i], axis=1).min()
-        nearest_distances.append([t, name, dist])
+        dist = np.min(np.linalg.norm(others - current, axis=1))
+        nearest_rows.append([time_val, names[i], dist])
 
-df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
+df_nn = pd.DataFrame(nearest_rows, columns=['datetime_utc', 'name', 'nearest_neighbor_km'])
+
 
 # altitude stats
-alt_stats = df_positions.groupby('name')['altitude_km'].agg(['min','max','mean']).reset_index()
 
-# simulate count of passes over Europe
-# Europe box: lat 35-70, lon -10 to 40
-def in_europe(lat, lon):
-    return (35 <= lat <= 70) & (-10 <= lon <= 40)
+alt_stats = (
+    df_positions.groupby('name')['altitude_km']
+    .agg(['min', 'max', 'mean'])
+    .reset_index()
+)
 
-df_positions['over_europe'] = df_positions.apply(lambda r: in_europe(r.latitude_deg, r.longitude_deg), axis=1)
-coverage = df_positions.groupby('name')['over_europe'].sum().reset_index().rename(columns={'over_europe':'passes_over_europe'})
+
+# Approx count of passes over Europe
+
+# europe bounding box
+def is_in_europe(lat, lon):
+    return (35 <= lat <= 70) and (-10 <= lon <= 40)
+
+df_positions['over_europe'] = df_positions.apply(
+    lambda row: is_in_europe(row.latitude_deg, row.longitude_deg), axis=1
+)
+
+# count how many times each sat is over Europe
+coverage = (
+    df_positions.groupby('name')['over_europe']
+    .sum()
+    .reset_index()
+    .rename(columns={'over_europe': 'passes_over_europe'})
+)
 
 
 # ----------------------
