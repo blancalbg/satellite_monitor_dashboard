@@ -56,19 +56,15 @@ st.markdown(
 # Load data
 # ----------------------
 
-# Absolute path relative to this script
 csv_path = os.path.join(os.path.dirname(__file__), '../data/positions.csv')
-
-# Read CSV safely
 
 df_positions = pd.read_csv(
     csv_path,
-    dtype={'altitude_km': float},  # Force float type for altitude
-    parse_dates=['datetime_utc'],  # Ensure datetime is recognized
-    thousands=','                 # Handle any thousands separators
-)
+    dtype={'altitude_km': float}, 
+    parse_dates=['datetime_utc'], 
+    thousands=',')
 
-# Optional: check the first few rows to debug in cloud
+#check the first few rows to debug in cloud
 #st.write(df_positions.head())
 #st.write("CSV preview in Cloud:")
 
@@ -76,7 +72,7 @@ df_positions = pd.read_csv(
 # Compute derived metrics
 # ----------------------
 
-# 1. Nearest-neighbor distances
+# nn distances
 def geodetic_to_ecef(lat, lon, alt):
     EARTH_R = 6371.0
     lat = np.deg2rad(lat)
@@ -90,7 +86,7 @@ def geodetic_to_ecef(lat, lon, alt):
 positions_ecef = geodetic_to_ecef(df_positions['latitude_deg'], df_positions['longitude_deg'], df_positions['altitude_km'])
 df_positions[['x','y','z']] = positions_ecef
 
-# Nearest neighbor distances per satellite per timestamp
+# nn distances per satellite per timestamp
 nearest_distances = []
 for t, group in df_positions.groupby('datetime_utc'):
     coords = group[['x','y','z']].values
@@ -102,10 +98,10 @@ for t, group in df_positions.groupby('datetime_utc'):
 
 df_nn = pd.DataFrame(nearest_distances, columns=['datetime_utc','name','nearest_neighbor_km'])
 
-# 2. Altitude stats
+# altitude stats
 alt_stats = df_positions.groupby('name')['altitude_km'].agg(['min','max','mean']).reset_index()
 
-# 3. Optional: simulate coverage (count of passes over Europe)
+# simulate count of passes over Europe
 # Europe box: lat 35-70, lon -10 to 40
 def in_europe(lat, lon):
     return (35 <= lat <= 70) & (-10 <= lon <= 40)
@@ -119,7 +115,7 @@ coverage = df_positions.groupby('name')['over_europe'].sum().reset_index().renam
 # ----------------------
 st.sidebar.header("Controls & Filters")
 
-# Select satellites to display
+# select satellites to display
 all_sat_names = df_positions['name'].unique()
 selected_sats = st.sidebar.multiselect(
     "Select satellites to display", 
@@ -128,7 +124,7 @@ selected_sats = st.sidebar.multiselect(
 )
 df_positions = df_positions[df_positions['name'].isin(selected_sats)]
 
-# Close approach threshold (optional for highlighting distances)
+# close approach threshold
 st.sidebar.subheader("Threshold (Distances Tab Only)")
 threshold_km = st.sidebar.number_input(
     "Highlight distances below (km)", 
@@ -136,7 +132,7 @@ threshold_km = st.sidebar.number_input(
 )
 st.sidebar.caption("This only affects the Nearest-Neighbor Distances tab.")
 
-# Quick stats summary
+# summary
 st.sidebar.markdown("---")
 st.sidebar.subheader("Quick Stats")
 st.sidebar.markdown(f"- Total satellites: **{len(selected_sats)}**")
@@ -145,7 +141,7 @@ if len(df_positions) > 0:
     st.sidebar.markdown(f"- Min nearest neighbor: **{df_nn['nearest_neighbor_km'].min():.0f} km**")
     st.sidebar.markdown(f"- Max nearest neighbor: **{df_nn['nearest_neighbor_km'].max():.0f} km**")
 
-# Filter satellites based on sidebar multiselect
+# filter satellites sidebar 
 df_positions = df_positions[df_positions['name'].isin(selected_sats)]
 
 
@@ -158,11 +154,11 @@ tabs = st.tabs(["Overview", "Distances", "Altitude", "Coverage", "Positions 2D"]
 with tabs[0]:
     st.subheader("🛰️ Constellation Overview")
 
-    # Merge the computed metrics
+    # merge the computed metrics
     summary = alt_stats.merge(df_nn.groupby('name')['nearest_neighbor_km'].mean().reset_index(), on='name')
     summary = summary.merge(coverage, on='name')
 
-    # Compute extra indicators
+    # compute extra indicators
     summary["stability_index"] = (summary["max"] - summary["min"]) / summary["mean"]
     summary["risk_score"] = np.exp(-summary["nearest_neighbor_km"] / 100)
 
@@ -176,7 +172,7 @@ with tabs[0]:
 
     summary["orbit_health"] = summary["mean"].apply(classify_orbit)
 
-    # Header summary
+    # summary
     avg_alt = summary["mean"].mean()
     avg_sep = summary["nearest_neighbor_km"].mean()
 
@@ -195,7 +191,7 @@ with tabs[0]:
         - **Passes over Europe:** Number of times the satellite’s ground track crossed the region (lat 35–70°, lon –10–40°).
         """)
 
-    # Conditional formatting
+    # formatting
     def color_orbit(val):
         if val == "Nominal":
             color = "#2ecc71"  # green
@@ -244,7 +240,7 @@ with tabs[0]:
 with tabs[1]:
     st.subheader("Nearest-Neighbor Distances")
 
-    # ---------- Summary metrics ----------
+    # summary metrics
     min_dist = df_nn['nearest_neighbor_km'].min()
     mean_dist = df_nn['nearest_neighbor_km'].mean()
     below_threshold = (df_nn['nearest_neighbor_km'] < threshold_km).mean() * 100
@@ -257,7 +253,7 @@ with tabs[1]:
     *(Threshold only applies to this tab)*
     """)
 
-    # ---------- Explanation ----------
+    
     with st.expander("ℹ️ Understanding this view"):
         st.markdown("""
         Each point represents the **distance to the nearest satellite** at a given timestamp.
@@ -269,7 +265,7 @@ with tabs[1]:
         Values below the threshold (default: 50 km) indicate *potentially risky close approaches*.
         """)
 
-    # ---------- Full-range line chart ----------
+    # line chart
     fig = px.line(df_nn, x='datetime_utc', y='nearest_neighbor_km', color='name', markers=False, template="plotly_dark")
     fig.update_layout(
     yaxis_title="Nearest Neighbor Distance (km)",
@@ -280,7 +276,7 @@ with tabs[1]:
                   annotation_text="Threshold", annotation_position="bottom right")
     st.plotly_chart(fig, use_container_width=True)
 
-    # ---------- Zoomed-in scatter plot ----------
+    # zoomed-in scatter plot
     df_zoom = df_nn[df_nn['nearest_neighbor_km'] < threshold_km*2].copy()
     if not df_zoom.empty:
         df_zoom['color'] = np.where(df_zoom['nearest_neighbor_km'] < threshold_km, 'Below Threshold', 'Normal')
@@ -304,7 +300,7 @@ with tabs[1]:
     else:
         st.info("No distances below the zoom threshold to display.")
 
-    # ---------- Table of close approaches ----------
+    # table of close approaches
     st.subheader(f"Close Approaches (< {threshold_km} km)")
     df_close = df_nn[df_nn['nearest_neighbor_km'] < threshold_km].copy()
 
@@ -313,7 +309,7 @@ with tabs[1]:
         for idx, row in df_close.iterrows():
             t = row['datetime_utc']
             sat_name = row['name']
-            # Get positions at that timestamp
+            # et positions at that timestamp
             group = df_positions[df_positions['datetime_utc'] == t]
             coords = group[['x','y','z']].values
             names = group['name'].values
@@ -334,7 +330,7 @@ with tabs[1]:
     else:
         st.info("No close approaches below threshold currently.")
 
-    # ---------- Histogram ----------
+    # histogram
     st.subheader("Distance Distribution")
     fig_hist = px.histogram(df_nn, x='nearest_neighbor_km', nbins=30, color='name',
                             barmode='overlay', template="plotly_dark")
@@ -351,7 +347,7 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Altitude Over Time")
 
-    # Detect outliers: satellites with unusually high or low mean altitude
+    # detect outliers
     alt_summary = df_positions.groupby('name')['altitude_km'].mean()
     q1, q3 = alt_summary.quantile([0.25, 0.75])
     iqr = q3 - q1
@@ -364,7 +360,7 @@ with tabs[2]:
 
     st.markdown(f"Detected **{len(outliers)} outlier satellites** based on altitude range: {', '.join(outliers)}")
 
-    # --- Main altitude plot (normal satellites) ---
+    # main altitude plot
     st.subheader("Nominal Altitude Profiles")
     fig_alt = px.line(df_normal, x='datetime_utc', y='altitude_km', color='name', markers=False, template="plotly_dark")
     fig_alt.update_layout(
@@ -374,7 +370,7 @@ with tabs[2]:
     )
     st.plotly_chart(fig_alt, use_container_width=True)
 
-    # --- Outlier altitude plot ---
+    # outlier altitude plot
     if len(outliers) > 0:
         st.subheader("Outlier Altitude Profiles")
         fig_out = px.line(df_outliers, x='datetime_utc', y='altitude_km', color='name', markers=True, template="plotly_dark")
@@ -385,7 +381,7 @@ with tabs[2]:
         )
         st.plotly_chart(fig_out, use_container_width=True)
 
-    # --- Altitude summary table ---
+    # altitude summary table
     st.subheader("Altitude Statistics Table")
     alt_table = df_positions.groupby('name').agg(
         min_altitude_km=('altitude_km', 'min'),
@@ -404,14 +400,14 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("Regional Coverage: Passes Over Europe")
 
-    # Detect passes (contiguous over_europe sequences)
+    # detect passes
     df_positions = df_positions.sort_values(['name', 'datetime_utc'])
     df_positions['pass_change'] = df_positions.groupby('name')['over_europe'].diff().fillna(0).ne(0)
     df_positions['pass_id'] = df_positions.groupby('name')['pass_change'].cumsum()
     passes = df_positions[df_positions['over_europe']].groupby('name')['pass_id'].nunique().reset_index()
     passes.columns = ['name', 'distinct_passes']
 
-    # Coverage percentage
+    # coverage percentage
     coverage_percent = df_positions.groupby('name')['over_europe'].mean().reset_index()
     coverage_percent['coverage_percent'] = coverage_percent['over_europe'] * 100
     coverage_percent = coverage_percent.drop(columns='over_europe')
@@ -420,7 +416,7 @@ with tabs[3]:
 
     st.markdown("Each **pass** is a continuous time segment when a satellite is above European lat/lon bounds.")
 
-     # Info box
+    
     with st.expander("ℹ️ What does coverage percentage mean?"):
         st.markdown("""
         **Coverage Percentage:** Fraction of total time a satellite spends over Europe.
@@ -446,7 +442,7 @@ with tabs[3]:
     fig_cov.update_layout(yaxis_title="Distinct Passes", coloraxis_colorbar_title="Coverage (%)")
     st.plotly_chart(fig_cov, use_container_width=True)
 
-    # Table
+    # table
     st.subheader("Coverage Summary Table")
     st.dataframe(coverage_stats.style.format({
         "distinct_passes": "{:.0f}",
@@ -461,13 +457,13 @@ with tabs[4]:
     latest_time = df_positions['datetime_utc'].max()
     df_latest = df_positions[df_positions['datetime_utc'] == latest_time].copy()
 
-    # Compute nearest-neighbor distance for hover
+    # nn distance for hover
     coords = df_latest[['x','y','z']].values
     dist_matrix = distance_matrix(coords, coords)
-    np.fill_diagonal(dist_matrix, np.inf)  # ignore self-distance
+    np.fill_diagonal(dist_matrix, np.inf)
     df_latest['nearest_neighbor_km'] = dist_matrix.min(axis=1)
 
-    # ----- Create Earth sphere -----
+    # earth sphere
     radius_earth = 6371  # km
     phi, theta = np.mgrid[0.0:np.pi:50j, 0.0:2.0*np.pi:50j]
     x_sphere = radius_earth * np.sin(phi) * np.cos(theta)
@@ -481,15 +477,15 @@ with tabs[4]:
         showscale=False
     )
 
-    # ----- Satellite positions -----
+    # satellite positions
     sat_scatter = go.Scatter3d(
         x=df_latest['x'],
         y=df_latest['y'],
         z=df_latest['z'],
         mode='markers',
         marker=dict(
-            size=5,  # fixed size
-            color=df_latest['altitude_km'],  # color represents altitude
+            size=5, 
+            color=df_latest['altitude_km'],
             colorscale='Viridis',
             colorbar=dict(title='Altitude (km)'),
         ),
